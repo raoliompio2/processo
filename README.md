@@ -131,8 +131,8 @@ Database schemas are defined in `src/lib/db/schema.ts`. Currently includes an ex
 ### Usage Example
 
 ```typescript
-import { db } from "@/lib/db/client";
-import { users } from "@/lib/db/schema";
+import { db } from "@/db/client";
+import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 // Select all users
