@@ -2,11 +2,7 @@
 
 Integration patterns, configurations, and optimizations for using **Drizzle ORM** with **Neon** Postgres.
 
-For official documentation:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/guides/drizzle
-```
+See the [official Drizzle guide](https://neon.com/docs/guides/drizzle.md) for complete details.
 
 ## Choosing the Right Driver
 

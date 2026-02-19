@@ -16,11 +16,7 @@ This command:
 - Configures the Neon MCP server for AI assistants
 - Sets up your local environment for Neon development
 
-For full CLI reference:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/reference/cli-init
-```
+See the [full CLI init reference](https://neon.com/docs/reference/cli-init.md) for all options.
 
 ## VSCode Extension
 
@@ -43,11 +39,7 @@ The Neon VSCode extension provides:
 code --install-extension neon.neon-vscode
 ```
 
-For detailed documentation:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/local/vscode-extension
-```
+See the [full VSCode extension docs](https://neon.com/docs/local/vscode-extension.md) for all features.
 
 ## Neon MCP Server
 
@@ -105,17 +97,13 @@ Get your API key from: https://console.neon.tech/app/settings/api-keys
 | `prepare_database_migration` | Safely prepare schema changes |
 | `provision_neon_auth`        | Set up Neon Auth              |
 
-For full MCP server documentation:
-
-```bash
-curl -H "Accept: text/markdown" https://neon.com/docs/ai/neon-mcp-server
-```
+See the [full MCP server docs](https://neon.com/docs/ai/neon-mcp-server.md) for all available operations.
 
 ## Documentation Resources
 
-| Topic              | URL                                          |
-| ------------------ | -------------------------------------------- |
-| CLI Init Command   | https://neon.com/docs/reference/cli-init     |
-| VSCode Extension   | https://neon.com/docs/local/vscode-extension |
-| MCP Server         | https://neon.com/docs/ai/neon-mcp-server     |
-| Neon CLI Reference | https://neon.com/docs/reference/neon-cli     |
+| Topic              | URL                                             |
+| ------------------ | ----------------------------------------------- |
+| CLI Init Command   | https://neon.com/docs/reference/cli-init.md     |
+| VSCode Extension   | https://neon.com/docs/local/vscode-extension.md |
+| MCP Server         | https://neon.com/docs/ai/neon-mcp-server.md     |
+| Neon CLI Reference | https://neon.com/docs/reference/neon-cli.md     |
