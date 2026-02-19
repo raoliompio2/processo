@@ -1,183 +1,94 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://neon.com/brand/neon-logo-dark-color.svg?new">
-  <source media="(prefers-color-scheme: light)" srcset="https://neon.com/brand/neon-logo-light-color.svg?new">
-  <img width="250px" alt="Neon Logo" src="https://neon.com/brand/neon-logo-dark-color.svg?new">
-</picture>
+# Casos e Evidências (WhatsApp)
 
-# Neon Postgres Vercel Marketplace Template
+App Next.js (App Router) para compilar e organizar evidências de WhatsApp (áudios e prints) por **Caso**, com multiusuário e controle de acesso (ACL).
 
-A minimal template for building full-stack React applications using Next.js, Vercel, and Neon.
+## Stack
 
-## Getting Started
+- **Next.js** (App Router, TypeScript)
+- **Neon Postgres** + **Prisma** (ORM e migrations)
+- **Clerk** (autenticação)
+- **Vercel Blob** (armazenamento de arquivos)
+- **Tailwind** + **shadcn/ui**
+- **Zod** (validação server-side)
 
-Click the "Deploy" button to clone this repo, create a new Vercel project, setup the Neon integration, and provision a new Neon database:
+## Variáveis de ambiente
 
-[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fneondatabase-labs%2Fvercel-marketplace-neon%2Ftree%2Fmain&project-name=my-vercel-neon-app&repository-name=my-vercel-neon-app&products=[{%22type%22:%22integration%22,%22integrationSlug%22:%22neon%22,%22productSlug%22:%22neon%22,%22protocol%22:%22storage%22}])
+Copie `.env.example` para `.env` e preencha:
 
-Once the process is complete, you can clone the newly created GitHub repository and start making changes locally.
+### Neon (Postgres)
 
-## Demo
+- `DATABASE_URL` – URL de conexão com pooler (uso em runtime)
+- `DATABASE_URL_UNPOOLED` – URL sem pooler (uso em migrations do Prisma)
 
-View live demo: [vercel-marketplace-neon.vercel.app](https://vercel-marketplace-neon.vercel.app/)
+### Clerk
 
-![Vercel with Neon](./docs/home.png)
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in`
+- `NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up`
+- `NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/`
+- `NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/`
+- `NEXT_PUBLIC_APP_URL` – URL da app (ex.: `http://localhost:3000`)
 
-## Local Setup
+### Vercel Blob
 
-### Installation
+- `BLOB_READ_WRITE_TOKEN` – token de leitura/escrita do Blob (upload e download via API)
 
-Install the dependencies:
+## Como rodar
 
 ```bash
 npm install
-```
-
-You can use the package manager of your choice. For example, Vercel also supports `bun install` out of the box.
-
-### Development
-
-#### Create a .env file in the project root
-
-```bash
 cp .env.example .env
-```
-
-#### Get your database URL
-
-Run `vercel env pull` to fetch the environment variables from your Vercel project.
-
-Alternatively, obtain the database connection string from the Connection Details widget on the [Neon Dashboard](https://console.neon.tech/) and add it to the `.env` file:
-
-```txt
-DATABASE_URL=<postgres://user:pass@host/db>
-```
-
-#### Start the development server
-
-```bash
+# Edite .env com as chaves reais
+npx prisma migrate deploy   # aplica migrations (ou use db push em dev)
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prisma
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Gerar cliente:** `npm run db:generate` (ou `npx prisma generate`)
+- **Criar nova migration:** `npx prisma migrate dev --name nome_da_migration`
+- **Aplicar migrations (produção):** `npx prisma migrate deploy`
+- **Abrir Prisma Studio:** `npm run db:studio`
 
-#### Neon MCP Server & Agent Skill
+## Clerk
 
-This project includes the [Neon MCP server](https://github.com/neondatabase/mcp-server-neon) and [neon-postgres agent skill](https://github.com/neondatabase/agent-skills) for AI-assisted development with Neon Postgres. Both are configured for Cursor, Claude Code and VS Code.
+1. Crie uma aplicação em [Clerk Dashboard](https://dashboard.clerk.com).
+2. Configure os redirect URLs (sign-in, sign-up, after sign-in) conforme as variáveis acima.
+3. Opcional: ative métodos de login (Email, Google, etc.) no dashboard.
 
-## Shadcn/ui
+## Upload seguro (Blob)
 
-This project uses [shadcn/ui](https://ui.shadcn.com/) for building accessible and customizable UI components.
+- Os arquivos **não** são públicos por padrão no sentido de “URL fixa exposta”.
+- Fluxo:
+  1. O cliente chama `POST /api/evidence` com metadados (caseId, type, file_name, etc.). O servidor valida permissão (`requireCaseRole(caseId, 'editor')`), cria o registro de evidência no DB e retorna o `id`.
+  2. O cliente envia o arquivo em `POST /api/evidence/[id]/upload` (multipart). O servidor valida de novo, faz o upload para o Vercel Blob com path `cases/{caseId}/evidence/{evidenceId}/{filename}` e atualiza o registro com `blob_url` e metadados.
+- Download/visualização: `GET /api/evidence/[id]/download` exige `requireCaseRole(caseId, 'viewer')` e redireciona para a URL do blob. Nenhuma URL permanente de arquivo é exposta ao cliente sem passar por essa API.
 
-### Configuration
+## Transcrição de áudio
 
-Shadcn/ui is configured in `components.json`. The project uses:
-- **Style**: New York
-- **Base Color**: Neutral
-- **Icon Library**: Lucide React
-- **CSS Variables**: Enabled for theming
+- Ao criar uma evidência do tipo `audio`, é criado um job de tipo `transcription` (status `queued`).
+- **Mock atual:** a UI permite colar/editar a transcrição manualmente; o endpoint `PATCH /api/jobs/[id]` com `status: 'done'` e `transcript_text` atualiza a evidência.
+- **Provider real:** para integrar um serviço de transcrição (ex.: Whisper, outro API):
+  1. Após criar o job, dispare um worker ou chamada assíncrona que processe o áudio.
+  2. Ao concluir, chame `PATCH /api/jobs/[id]` (ou atualize diretamente no DB e no `Evidence`) com o texto e `status: 'done'`.
 
-### Adding Components
+## Estrutura principal
 
-To add new shadcn/ui components:
+- **Rotas protegidas:** `/cases`, `/cases/[id]` e `/api/*` (exceto `/api/auth`) exigem sessão Clerk.
+- **ACL por caso:** `case_members` com roles `owner` | `editor` | `viewer`. Helpers: `requireAuth()`, `requireCaseRole(caseId, minRole)` em `src/lib/auth/require.ts`.
+- **Auditoria:** `logAudit()` em `src/lib/audit.ts` para ações críticas (criação/edição/remoção de caso, evidência, membros, transcrição).
 
-```bash
-npx shadcn@latest add [component-name]
-```
+## Arquivos criados/alterados (resumo)
 
-For example:
-```bash
-npx shadcn@latest add card
-npx shadcn@latest add dialog
-```
-
-### Theme Support
-
-The project includes a theme provider and selector:
-- **Theme Provider**: `src/components/themes/provider.tsx`
-- **Theme Selector**: `src/components/themes/selector.tsx`
-
-Themes are managed using `next-themes` and support light, dark, and system preferences.
-
-### Existing Components
-
-- `Button` - `src/components/ui/button.tsx`
-- `DropdownMenu` - `src/components/ui/dropdown-menu.tsx`
-
-### Learn More
-
-- [shadcn/ui Documentation](https://ui.shadcn.com/docs)
-- [shadcn/ui Components](https://ui.shadcn.com/docs/components)
-
-## Drizzle ORM
-
-This project uses [Drizzle ORM](https://orm.drizzle.team/) for type-safe database operations with PostgreSQL.
-
-### Configuration
-
-Drizzle is configured in `drizzle.config.ts`. The database client is set up in `src/lib/db/client.ts`.
-
-### Schema
-
-Database schemas are co-located with their features. Auth-related schemas (auto-generated by better-auth) are in `src/lib/auth/schema.ts`. You can add additional schema files for other features and they will be automatically detected by Drizzle Kit.
-
-### Database Scripts
-
-- `npm run db:generate` - Generate migration files from your schema
-- `npm run db:migrate` - Apply migrations to your database
-- `npm run db:studio` - Open Drizzle Studio (visual database browser)
-
-### Usage Example
-
-```typescript
-import { db } from "@/db/client";
-import { user } from "@/auth/schema";
-import { eq } from "drizzle-orm";
-
-// Select all users
-const allUsers = await db.select().from(user);
-
-// Insert a user
-await db.insert(user).values({
-  id: "123",
-  name: "John Doe",
-  email: "john@example.com",
-});
-
-// Update a user
-await db.update(user)
-  .set({ name: "Jane Doe" })
-  .where(eq(user.id, "123"));
-```
-
-### Running Migrations
-
-1. Update your schema files (e.g., `src/lib/auth/schema.ts` or other feature-specific schema files)
-2. Generate migrations: `npm run db:generate`
-3. Review the generated SQL in the `drizzle/` folder
-4. Apply migrations: `npm run db:migrate`
-
-### Learn More
-
-- [Drizzle ORM Documentation](https://orm.drizzle.team/docs/overview)
-- [Drizzle with PostgreSQL](https://orm.drizzle.team/docs/get-started-postgresql)
-- [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview)
-
-## Learn More
-
-To learn more about Neon, check out the Neon documentation:
-
-- [Neon on Vercel Fluid Compute](https://neon.com/docs/guides/vercel-connection-methods) - learn about differnet datatabase connection methods on Fluid.
-- [Neon Documentation](https://neon.tech/docs/introduction) - learn about Neon's features and SDKs.
-- [Neon Discord](https://discord.gg/9kf3G4yUZk) - join the Neon Discord server to ask questions and join the community.
-- [ORM Integrations](https://neon.tech/docs/get-started-with-neon/orms) - find Object-Relational Mappers (ORMs) that work with Neon.
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-## Deploy on Vercel
-
-Commit and push your code changes to your GitHub repository to automatically trigger a new deployment.
+- `prisma/schema.prisma` – modelo de dados (Case, CaseMember, Evidence, EvidenceJob, Tag, Fact, AuditLog, etc.)
+- `src/lib/db/prisma.ts` – cliente Prisma e `checkDbConnection`
+- `src/lib/auth/require.ts` – `requireAuth`, `requireCaseRole`
+- `src/lib/audit.ts` – `logAudit`
+- `src/lib/validations/*.ts` – schemas Zod (case, member, evidence, tag, fact, job)
+- `src/middleware.ts` – Clerk (proteção de rotas)
+- `src/app/layout.tsx` – ClerkProvider, Toaster (sonner)
+- `src/app/sign-in/[[...sign-in]]/page.tsx`, `src/app/sign-up/[[...sign-up]]/page.tsx` – páginas Clerk
+- `src/app/cases/page.tsx`, `src/app/cases/new/page.tsx`, `src/app/cases/[id]/page.tsx` – listagem, criação e detalhe de caso
+- `src/app/api/cases/*`, `src/app/api/evidence/*`, `src/app/api/jobs/*`, `src/app/api/tags/route.ts`, `src/app/api/facts/*`, `src/app/api/export/case/[id]/route.ts` – APIs
+- `src/components/case/*` – EvidenceUploader, EvidenceCard, Timeline, FactsPanel, MembersPanel, ExportPanel

@@ -1,0 +1,208 @@
+// Prisma schema for Casos + Evidências WhatsApp
+// Auth: User + Session in DB; CaseMember.userId references User.id
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String    @map("password_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+enum CaseStatus {
+  draft
+  active
+  closed
+}
+
+enum CaseMemberRole {
+  owner
+  editor
+  viewer
+}
+
+enum EvidenceType {
+  image
+  audio
+  text
+}
+
+enum EvidenceJobType {
+  transcription
+  ocr
+}
+
+enum EvidenceJobStatus {
+  queued
+  processing
+  done
+  error
+}
+
+model Case {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  peopleInvolved  String?  @map("people_involved")
+  status          CaseStatus @default(draft)
+  shareToken      String?  @unique @map("share_token")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  members    CaseMember[]
+  evidence   Evidence[]
+  tags       Tag[]
+  facts      Fact[]
+  auditLogs  AuditLog[]
+}
+
+model CaseMember {
+  id        String         @id @default(cuid())
+  caseId    String         @map("case_id")
+  userId    String         @map("user_id")
+  role      CaseMemberRole
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  // userId references User.id when the user exists in users table (no FK to allow legacy Clerk ids during migration)
+
+  @@unique([caseId, userId])
+  @@index([caseId, userId])
+  @@map("case_members")
+}
+
+model Evidence {
+  id             String       @id @default(cuid())
+  caseId         String       @map("case_id")
+  type           EvidenceType
+  blobKey        String?      @map("blob_key")
+  blobUrl        String?      @map("blob_url")
+  fileName       String?      @map("file_name")
+  fileSize       Int?         @map("file_size")
+  mimeType       String?      @map("mime_type")
+  capturedAt     DateTime?    @map("captured_at")
+  source         String       @default("whatsapp")
+  notes         String?
+  transcriptText String?      @map("transcript_text")
+  ocrText        String?      @map("ocr_text")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  case   Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  jobs   EvidenceJob[]
+  tags   EvidenceTag[]
+  facts  FactEvidence[]
+
+  @@index([caseId, capturedAt])
+  @@index([caseId, createdAt])
+  @@map("evidence")
+}
+
+model EvidenceJob {
+  id           String            @id @default(cuid())
+  evidenceId   String            @map("evidence_id")
+  jobType      EvidenceJobType   @map("job_type")
+  status       EvidenceJobStatus @default(queued)
+  errorMessage String?           @map("error_message")
+  startedAt    DateTime?         @map("started_at")
+  finishedAt   DateTime?         @map("finished_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@map("evidence_jobs")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  caseId    String   @map("case_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  case      Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  evidence  EvidenceTag[]
+
+  @@unique([caseId, name])
+  @@map("tags")
+}
+
+model EvidenceTag {
+  evidenceId String @map("evidence_id")
+  tagId      String @map("tag_id")
+
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([evidenceId, tagId])
+  @@map("evidence_tags")
+}
+
+model Fact {
+  id          String   @id @default(cuid())
+  caseId      String   @map("case_id")
+  title       String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  case     Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  evidence FactEvidence[]
+
+  @@map("facts")
+}
+
+model FactEvidence {
+  factId     String @map("fact_id")
+  evidenceId String @map("evidence_id")
+
+  fact     Fact     @relation(fields: [factId], references: [id], onDelete: Cascade)
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@id([factId, evidenceId])
+  @@map("fact_evidence")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String   @map("actor_user_id")
+  caseId       String?  @map("case_id")
+  action       String
+  targetType   String   @map("target_type")
+  targetId     String?  @map("target_id")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  @@index([caseId])
+  @@index([actorUserId])
+  @@map("audit_logs")
+}

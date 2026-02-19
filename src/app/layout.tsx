@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/themes/provider"
+import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/themes/provider";
 import "./globals.css";
 import { inter } from "./fonts";
 
 export const metadata: Metadata = {
-  title: "Vercel + Neon",
-  description: "Use Neon with Vercel",
+  title: "Casos e Evidências",
+  description: "Compilar e organizar evidências de WhatsApp por Caso",
 };
 
 export default function RootLayout({
@@ -14,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body>
+    <html lang="pt-BR" className={inter.variable} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -23,8 +24,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <Toaster richColors position="top-center" />
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }
