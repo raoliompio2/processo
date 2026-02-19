@@ -11,7 +11,11 @@ export default async function ViewPublicPage({ params }: Props) {
     where: { shareToken: token },
     include: {
       evidence: {
-        orderBy: { capturedAt: "asc" },
+        orderBy: [
+          { sortOrder: "asc" },
+          { capturedAt: "asc" },
+          { createdAt: "asc" },
+        ],
         include: {
           tags: { include: { tag: true } },
           jobs: { select: { id: true, jobType: true, status: true } },
