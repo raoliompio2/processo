@@ -104,6 +104,7 @@ model Evidence {
   id             String       @id @default(cuid())
   caseId         String       @map("case_id")
   type           EvidenceType
+  sortOrder      Int?         @map("sort_order")
   blobKey        String?      @map("blob_key")
   blobUrl        String?      @map("blob_url")
   fileName       String?      @map("file_name")

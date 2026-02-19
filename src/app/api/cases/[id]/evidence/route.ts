@@ -33,7 +33,11 @@ export async function GET(
   const evidence = await prisma.evidence.findMany({
     where,
     include: { jobs: true, tags: { include: { tag: true } } },
-    orderBy: [{ capturedAt: "asc" }, { createdAt: "asc" }],
+    orderBy: [
+      { sortOrder: "asc" },
+      { capturedAt: "asc" },
+      { createdAt: "asc" },
+    ],
   });
   return Response.json(evidence);
 }

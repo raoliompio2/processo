@@ -1,7 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { EvidenceCard } from "./EvidenceCard";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { toast } from "sonner";
+import { SortableEvidenceItem } from "./SortableEvidenceItem";
 
 type EvidenceWithRelations = {
   id: string;
@@ -32,6 +47,7 @@ export function Timeline({ caseId, canEdit, refreshKey }: Props) {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [tagFilter, setTagFilter] = useState<string>("");
   const [onlyPendingJobs, setOnlyPendingJobs] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   useEffect(() => {
     fetch(`/api/tags?caseId=${caseId}`)
@@ -57,6 +73,56 @@ export function Timeline({ caseId, canEdit, refreshKey }: Props) {
     setLoading(true);
     fetchEvidence();
   }, [fetchEvidence, refreshKey]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const canReorder =
+    canEdit &&
+    !typeFilter &&
+    !tagFilter &&
+    !onlyPendingJobs &&
+    evidence.length > 1;
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = evidence.findIndex((e) => e.id === active.id);
+      const newIndex = evidence.findIndex((e) => e.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const next = [...evidence];
+      const [removed] = next.splice(oldIndex, 1);
+      next.splice(newIndex, 0, removed);
+      const orderedIds = next.map((e) => e.id);
+      setReordering(true);
+      try {
+        const res = await fetch(`/api/cases/${caseId}/evidence/reorder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderedIds }),
+        });
+        if (res.ok) {
+          setEvidence(next);
+          toast.success("Ordem atualizada.");
+        } else {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err.error ?? "Erro ao reordenar");
+          fetchEvidence();
+        }
+      } catch {
+        toast.error("Erro ao reordenar");
+        fetchEvidence();
+      } finally {
+        setReordering(false);
+      }
+    },
+    [caseId, evidence, fetchEvidence]
+  );
 
   const baseUrl =
     typeof window !== "undefined" ? window.location.origin : "";
@@ -109,22 +175,40 @@ export function Timeline({ caseId, canEdit, refreshKey }: Props) {
           />
           Só pendentes (job)
         </label>
+        {canEdit && (typeFilter || tagFilter || onlyPendingJobs) && evidence.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            Remova os filtros para reordenar a timeline.
+          </span>
+        )}
       </div>
       <div className="space-y-3">
         {evidence.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma evidência ainda.</p>
         ) : (
-          evidence.map((e) => (
-            <EvidenceCard
-              key={e.id}
-              evidence={e as unknown as Parameters<typeof EvidenceCard>[0]["evidence"]}
-              baseUrl={baseUrl}
-              canEdit={canEdit}
-              onTranscriptSaved={fetchEvidence}
-              onEvidenceUpdated={fetchEvidence}
-              onEvidenceDeleted={fetchEvidence}
-            />
-          ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={evidence.map((e) => e.id)}
+              strategy={verticalListSortingStrategy}
+              disabled={reordering}
+            >
+              {evidence.map((e) => (
+                <SortableEvidenceItem
+                  key={e.id}
+                  evidence={e}
+                  baseUrl={baseUrl}
+                  canEdit={canEdit}
+                  reorderEnabled={canReorder}
+                  onTranscriptSaved={fetchEvidence}
+                  onEvidenceUpdated={fetchEvidence}
+                  onEvidenceDeleted={fetchEvidence}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>
