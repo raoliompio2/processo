@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Upload, FileImage, FileAudio, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileImage, FileAudio, X, CheckCircle2, AlertCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ACCEPT = "image/*,audio/ogg,audio/mpeg,audio/mp4,audio/x-m4a,.ogg,.mp3,.m4a";
@@ -181,8 +181,13 @@ export function EvidenceUploader({ caseId, onUploaded }: Props) {
   const pendingCount = queue.filter((x) => x.status === "pending").length;
   const hasPending = pendingCount > 0;
 
+  const openFilePicker = useCallback(() => {
+    inputRef.current?.click();
+  }, []);
+
   return (
     <div className="space-y-4">
+      {/* Bloco 1: área de drop */}
       <div
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -228,6 +233,23 @@ export function EvidenceUploader({ caseId, onUploaded }: Props) {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* Divisor com + : clica aqui para incluir foto ou áudio depois deste bloco */}
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-border" aria-hidden />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0 rounded-full border-2 border-dashed border-muted-foreground/40 hover:border-primary hover:bg-primary/10 hover:text-primary"
+          onClick={openFilePicker}
+          aria-label="Incluir foto ou áudio"
+          title="Incluir foto ou áudio"
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+        <span className="h-px flex-1 bg-border" aria-hidden />
       </div>
 
       {queue.length > 0 && (
@@ -295,6 +317,22 @@ export function EvidenceUploader({ caseId, onUploaded }: Props) {
               </li>
             ))}
           </ul>
+          {/* + depois da fila: incluir mais foto/áudio */}
+          <div className="flex items-center gap-3 pt-1">
+            <span className="h-px flex-1 bg-border" aria-hidden />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-full border-dashed border-muted-foreground/40 hover:border-primary hover:bg-primary/10"
+              onClick={openFilePicker}
+              aria-label="Incluir mais foto ou áudio"
+              title="Incluir mais"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <span className="h-px flex-1 bg-border" aria-hidden />
+          </div>
         </div>
       )}
     </div>
