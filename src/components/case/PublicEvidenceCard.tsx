@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { X } from "lucide-react";
 
 type PublicEvidence = {
   id: string;
@@ -94,22 +95,41 @@ export function PublicEvidenceCard({ evidence }: Props) {
 
       {showZoom && evidence.type === "image" && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setShowZoom(false)}
-          role="button"
-          tabIndex={0}
+          className="fixed inset-0 z-50 flex flex-col bg-black/90"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Imagem em tela cheia"
           onKeyDown={(e) => e.key === "Escape" && setShowZoom(false)}
-          aria-label="Fechar"
         >
-          <Image
-            src={evidence.viewUrl}
-            alt={evidence.fileName ?? "Evidência"}
-            width={1200}
-            height={800}
-            className="max-h-full max-w-full object-contain"
-            unoptimized
-            onClick={(e) => e.stopPropagation()}
-          />
+          {/* Botão fechar sempre visível no topo (celular) */}
+          <div className="flex shrink-0 justify-end p-3 pb-2">
+            <button
+              type="button"
+              onClick={() => setShowZoom(false)}
+              onKeyDown={(e) => e.key === "Escape" && setShowZoom(false)}
+              className="flex h-12 w-12 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
+              aria-label="Fechar e voltar à timeline"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <div
+            className="flex flex-1 items-center justify-center overflow-auto p-4 pt-0"
+            onClick={() => setShowZoom(false)}
+          >
+            <Image
+              src={evidence.viewUrl}
+              alt={evidence.fileName ?? "Evidência"}
+              width={1200}
+              height={800}
+              className="max-h-full max-w-full cursor-default object-contain"
+              unoptimized
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <p className="shrink-0 pb-4 pt-2 text-center text-sm text-white/70">
+            Toque fora da imagem ou no X para voltar
+          </p>
         </div>
       )}
     </div>
